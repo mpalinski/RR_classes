@@ -2,23 +2,39 @@
 title: "Exercise 2"
 author: "Wojciech Hardy; Michał Paliński"
 date: "3/21/2021"
+<<<<<<< HEAD
 output: ioslides_presentation
+=======
+output: html_document
+>>>>>>> upstream/main
 params:
   season:
     label: "Season"
     value: 1
+<<<<<<< HEAD
     input: select
     choices: [1,2,3,4,5,6,7,8]
+=======
+    input: slider
+    min: 1
+    max: 8
+    step: 1
+    sep: "" 
+>>>>>>> upstream/main
 ---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+<<<<<<< HEAD
 load("Data/season_1.RData")
 
 seasons <- data.frame(season = 1:8,
                       eps = c(10, 10, 10, 10, 10, 10, 7, 6),
                       views = c(2.52, 3.80, 4.97, 6.84, 6.88, 7.69, 10.26, 11.99))
+=======
+load(paste0("Data/season_", params$season,".RData"))
+>>>>>>> upstream/main
 ```
 
 # Game of Thrones - Season `r params$season` summary in numbers
