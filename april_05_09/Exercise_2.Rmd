@@ -3,15 +3,25 @@ title: "Exercise 2"
 author: "Wojciech Hardy; Michał Paliński"
 date: "3/21/2021"
 output: html_document
+params:
+  season:
+    label: "Season"
+    value: 1
+    input: select
+    choices: [1,2,3,4,5,6,7,8]
 ---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 load("Data/season_1.RData")
+
+seasons <- data.frame(season = 1:8,
+                      eps = c(10, 10, 10, 10, 10, 10, 7, 6),
+                      views = c(2.52, 3.80, 4.97, 6.84, 6.88, 7.69, 10.26, 11.99))
 ```
 
-# Game of Thrones - Season 1 summary in numbers
+# Game of Thrones - Season `r params$season` summary in numbers
 
 ### __(*Warning:* spoilers ahead)__
 
@@ -25,9 +35,9 @@ Set on the fictional continents of Westeros and Essos, Game of Thrones has a lar
 
 ***
 
-### Season 1 summary
+### Season `r params$season` summary
 
-Season 1 of Game of Thrones consisted of 10 episodes that aired between April 17 and June 19, 2011 on HBO. The show gathered an average of 2.515 first-day TV viewers in the US, with the number growing from 2.22 to 3.04 million by the end of the season.
+Season `r params$season` of Game of Thrones consisted of `r seasons[params$season, "eps"]` episodes. The show gathered an average of `r seasons[params$season, "views"]` first-day TV viewers in the US.
 
 The most popular episode of the season was "Fire and Blood", in which:
 
