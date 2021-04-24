@@ -1,22 +1,44 @@
 ---
-title: "project"
+title: "Yahoo Finance stock price analysis"
 author: "Grzegorz Chadysz, Konrad Archiciński"
-date: "22 04 2021"
-output: html_document
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    toc: yes
+  html_document:
+    toc: yes
+params:
+  Company:
+    value: "Microsoft"
+    input: select
+    choices: ["Intel", "Microsoft", "Nvidia"]
+  From: 
+    value: !r lubridate::today() 
+    input: date
+    max: !r lubridate::today()
+  To:
+    value: !r lubridate::today()
+    input: date
+    max: !r lubridate::today()
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE)
 ```
 
-## R Markdown
+## Intro
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+print(params$Company)
+print(params$From)
+print(params$To)
 ```
 
 ## Including Plots
