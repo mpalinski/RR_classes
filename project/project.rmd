@@ -108,7 +108,7 @@ ggplot(quotes_long, aes(x = Date)) +
 
 ### Plotly
 
-```{r, echo=F, out.width="100%"}
+```{r, echo=F, out.width="100%", warning=F}
 p <- ggplot(quotes_long, aes(x = Date)) +
   geom_line(aes(y = value)) +
   theme_modern_rc() +
