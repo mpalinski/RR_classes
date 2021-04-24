@@ -11,42 +11,76 @@ output:
     toc: yes
 params:
   Company:
-    value: "Microsoft"
+    value: "MSFT"
     input: select
-    choices: ["Intel", "Microsoft", "Nvidia"]
+    choices: ["INTC", "MSFT", "NVDA", "AMD", "GM", "F", "TM"]
   From: 
-    value: !r lubridate::today() 
+    value: !r lubridate::today() - 1000
     input: date
     max: !r lubridate::today()
   To:
     value: !r lubridate::today()
     input: date
     max: !r lubridate::today()
+  Columns: 
+    value: "None"
+    label: "Quotes"
+    choices: ["Open", "High", "Low", "Close", "Volume", "Adjusted"]
+    input: select
+    multiple: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,
-                      cache = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(lubridate)
+library(quantmod)
+library(tidyverse)
 ```
 
 ## Intro
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Checking parameters:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
+```{r}
 print(params$Company)
 print(params$From)
 print(params$To)
+print(params$Columns)
+print(class(params$Columns))
 ```
 
-## Including Plots
+## Data
 
-You can also embed plots, for example:
+Getting the quotes:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, echo=F, message=F, warning=F}
+quotes <- getSymbols(
+  params$Company,
+  auto.assign = F,
+  from = params$From,
+  to = params$To
+)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Adjusting according to ticked checkboxes:
+
+```{r}
+head(quotes)
+columns_all <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
+columns_to_keep <- paste0(params$Company, ".", params$Columns)
+quotes <- subset(quotes, select = columns_to_keep)
+head(quotes)
+```
+
+## Plot
+
+```{r}
+#ggplot(quotes, aes(x = index(quotes))) +
+#  geom_line(aes(y = ))
+```
+
+
+
