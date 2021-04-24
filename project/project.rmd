@@ -35,12 +35,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r, echo=F, message=F, warning=F}
-library(lubridate)
 library(quantmod)
 library(tidyverse)
 library(data.table)
 library(kableExtra)
 library(hrbrthemes)
+library(plotly)
 ```
 
 ## Intro
@@ -96,15 +96,25 @@ kable(tail(quotes), row.names = F, caption = "Preview of the data") %>%
 quotes_long <- melt(quotes, id = "Date")
 ```
 
-### Multiple plots
+### Ggplot
 
 ```{r, echo=F, out.width="100%"}
 ggplot(quotes_long, aes(x = Date)) +
   geom_line(aes(y = value)) +
   theme_modern_rc() +
   facet_wrap(~variable, scales = "free") +
-  theme(axis.title = element_text(color = "white")) 
+  theme(strip.text = element_text(color = "white")) 
 ```
 
-### Single plot
+### Plotly
+
+```{r, echo=F, out.width="100%"}
+p <- ggplot(quotes_long, aes(x = Date)) +
+  geom_line(aes(y = value)) +
+  theme_modern_rc() +
+  facet_wrap(~variable, scales = "free") +
+  theme(strip.text = element_text(color = "white")) 
+
+ggplotly(p)
+```
 
