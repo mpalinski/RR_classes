@@ -24,7 +24,7 @@ params:
     max: !r lubridate::today()
   Columns: 
     value: "None"
-    label: "Quotes"
+    label: "Quotes (remove with DEL)"
     choices: ["Open", "High", "Low", "Close", "Volume", "Adjusted"]
     input: select
     multiple: yes
