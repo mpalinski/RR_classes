@@ -1,0 +1,120 @@
+---
+title: "Yahoo Finance stock price analysis"
+author: "Grzegorz Chadysz, Konrad Archiciński"
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+    toc: yes
+  html_document:
+    toc: yes
+params:
+  Company:
+    value: "MSFT"
+    input: select
+    choices: ["INTC", "MSFT", "NVDA", "AMD", "GM", "F", "TM"]
+  From: 
+    value: !r lubridate::today() - 1000
+    input: date
+    max: !r lubridate::today()
+  To:
+    value: !r lubridate::today()
+    input: date
+    max: !r lubridate::today()
+  Columns: 
+    value: "None"
+    label: "Quotes"
+    choices: ["Open", "High", "Low", "Close", "Volume", "Adjusted"]
+    input: select
+    multiple: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(quantmod)
+library(tidyverse)
+library(data.table)
+library(kableExtra)
+library(hrbrthemes)
+library(plotly)
+```
+
+## Intro
+
+Checking parameters:
+
+```{r}
+print(params$Company)
+print(params$From)
+print(params$To)
+print(params$Columns)
+```
+
+## Data
+
+Getting the quotes:
+
+```{r, echo=F, message=F, warning=F}
+quotes <- getSymbols(
+  params$Company,
+  auto.assign = F,
+  from = params$From,
+  to = params$To
+)
+```
+
+Displaying selected columns:
+
+```{r, echo=F, warning=F}
+columns_all <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
+
+# If no columns were selected then all are selected by default
+if (params$Columns == "None"){
+  columns_to_keep <- paste0(params$Company, ".", columns_all)
+} else {
+  columns_to_keep <- paste0(params$Company, ".", params$Columns)
+}
+
+# Subsetting selected columns
+quotes <- subset(quotes, select = columns_to_keep)
+
+# Changing to data frame format
+quotes <- data.frame(Date = index(quotes), coredata(quotes))
+
+kable(tail(quotes), row.names = F, caption = "Preview of the data") %>%
+  kable_styling(bootstrap_options = c("striped"))
+```
+
+## Plot
+
+```{r, echo=F, warning=F, message=F}
+# Melting the data into long format in order to plot more efficiently
+quotes_long <- melt(quotes, id = "Date")
+```
+
+### Ggplot
+
+```{r, echo=F, out.width="100%"}
+ggplot(quotes_long, aes(x = Date)) +
+  geom_line(aes(y = value)) +
+  theme_modern_rc() +
+  facet_wrap(~variable, scales = "free") +
+  theme(strip.text = element_text(color = "white")) 
+```
+
+### Plotly
+
+```{r, echo=F, out.width="100%", warning=F}
+p <- ggplot(quotes_long, aes(x = Date)) +
+  geom_line(aes(y = value)) +
+  theme_modern_rc() +
+  facet_wrap(~variable, scales = "free") +
+  theme(strip.text = element_text(color = "white")) 
+
+ggplotly(p)
+```
+

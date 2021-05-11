@@ -1,0 +1,91 @@
+---
+title: "Broadchurch"
+author: "Grzegorz Chadysz"
+date: "07-04-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Brief description
+
+*Broadchurch* is a British television crime drama programme broadcast on ITV. It was created and written by Chris Chibnall and produced by Kudos Film and Television, Shine America, and Imaginary Friends. The series is set in Broadchurch, a fictional English town in Dorset, and focuses on police detectives DI Alec Hardy (David Tennant) and DS Ellie Miller (Olivia Colman). The series features an ensemble cast that in addition to Tennant and Colman includes Jodie Whittaker, Andrew Buchan, Charlotte Beaumont, Arthur Darvill, Jonathan Bailey, Vicky McClure, and Matthew Gravelle.
+
+The first series, which premiered on 4 March 2013, focuses on the death of local 11-year-old Daniel “Danny” Latimer and the impact of grief, mutual suspicion, and media attention on the town. Danny's family (his mother, Beth (Jodie Whittaker), father, Mark (Andrew Buchan), and sister, Chloe (Charlotte Beaumont) are a key focus for the first series. The second series, which premiered on 5 January 2015, follows the dual storylines of bringing Danny's killer to justice and a case from the past returning to haunt Hardy. The third and final series, which premiered on 27 February 2017, focuses on the rape of a local woman (Julie Hesmondhalgh) at a birthday party, while the Latimer family goes to extreme lengths to move on from Danny's death. Chibnall has indicated that the third series is the last and that he originally envisioned Broadchurch as being a trilogy.
+
+All three series received positive reviews and praise for the writing, cinematography and character development.
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics("C:\\Users\\grzeg\\Desktop\\Data Science\\Reproducible Research\\RR_classes-main\\april_05_07\\broadchurch.jpg")
+```
+
+# Viewership in UK
+
+## Line plot
+
+```{r, echo=FALSE}
+views <- data.frame(episode = c("s1e1", "s1e2", "s1e3", "s1e4", "s1e5", "s1e6","s1e7", "s1e8",
+                                "s2e1", "s2e2", "s2e3", "s2e4", "s2e5", "s2e6","s2e7", "s2e8",
+                                "s3e1", "s3e2", "s3e3", "s3e4", "s3e5", "s3e6","s3e7", "s3e8"),
+                    views   = c(9.07, 9.01, 9.65, 9.42, 8.81, 8.95, 9.56, 10.47,
+                                11.34, 9.88, 9.27, 9.20, 8.91, 9.33, 9.33, 10.17,
+                                10.75, 10.76, 10.29, 10.46, 10.70, 10.57, 10.66, 11.61),
+                    season  = as.factor(c(rep(1,8), rep(2,8), rep(3,8))),
+                    ratings = c(8.3, 8.2, 8.1, 8.2, 8.5, 8.3, 8.7, 9.1, 
+                                8.3, 7.9, 7.9, 7.9, 7.9, 8.2, 8.3, 8.6,
+                                8.3, 8.0, 8.0, 8.2, 8.1, 8.5, 8.2, 8.5))
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
+library(tidyverse)
+
+ggplot(views, aes(x=as.factor(episode), y=views, group=1, color = season)) +
+  geom_point() +
+  geom_line() +
+  labs(x="Episode",
+       y="Views [millions]") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90))
+```
+
+We can observe that the show rarely dropped below 9 million viewers (3 occasions) and peaked visibly on the first episode of second season (`r views[views$episode == 's2e1',2]` million views) and the last episode of season 3, which was also the ending to the whole series (`r views[views$episode == 's3e8',2]` million views).
+
+The highest average viewership was achieved during the last season - `r round(sum(views[views$season == 3, 2])/8, 2)` million, followed by second season - `r round(sum(views[views$season == 2, 2])/8, 2)` million and, gathering the least views on average, first season - `r round(sum(views[views$season == 1, 2])/8, 2)` million.
+
+## Barplot approach
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
+ggplot(views, aes(x=as.factor(episode), color=season, fill=season)) +
+  geom_bar(aes(y=views), stat="identity") +
+  labs(x="Episode",
+       y="Views [millions]") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90)) 
+```
+
+# Views to ratings comparison
+
+```{r, out.width="100%"}
+p1 <- ggplot(views, aes(x=as.factor(episode), y=views, group=1, color = season)) +
+  geom_point() +
+  geom_line() +
+  labs(x="Episode",
+       y="Views [millions]") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90)) 
+
+p2 <- ggplot(views, aes(x=as.factor(episode), y=ratings, group=1, color = season)) +
+  geom_point() +
+  geom_line() +
+  labs(x="Episode",
+       y="Views [millions]") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90)) 
+
+gridExtra::grid.arrange(p1, p2, nrow = 2)
+```
+
+From this plot we can see that the show was becoming more popular in later seasons as its viewership was highest in third season despite the ratings being rather average overall. The show hit the best rating (`r max(views$ratings)`) on the last episode of first season and a streak of lowest ratings (`r min(views$ratings)`) from *s2e1* to *s2e4*.
+

@@ -18,48 +18,46 @@ task_data = read.csv("Data\\onet_tasks.csv")
 # 1-digit ISCO occupation categories. (Check here for details: https://www.ilo.org/public/english/bureau/stat/isco/isco08/)
 library(readxl)                     
 
-isco1 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO1")
-isco2 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO2")
-isco3 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO3")
-isco4 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO4")
-isco5 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO5")
-isco6 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO6")
-isco7 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO7")
-isco8 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO8")
-isco9 <- read_excel("Data\\Eurostat_employment_isco.xlsx", sheet="ISCO9")
+# Read all the sheets into one list
+path <- "Data\\Eurostat_employment_isco.xlsx"
+occupations <- excel_sheets(path)[-1]
+num_occup <- length(occupations)
+isco <- lapply(occupations, read_excel, path = path)
+
+# Create one big data frame with all iscos
+isco_all <- data.frame()
+for (i in 1:num_occup) {
+  df <- as.data.frame(isco[[i]])
+  isco_all <- rbind(isco_all, df)
+}
+
+# Add Worker variable 
+isco_all$Worker <- rep(seq(1,nrow(isco_all)/num_occup,1),num_occup)
+
+# Add Occupation variable
+isco_all$ISCO <- rep(1:num_occup, each=nrow(isco_all)/num_occup)
 
 # We will focus on three countries, but perhaps we could clean this code to allow it
 # to easily run for all the countries in the sample?
+library(tidyverse)
 
-# This will calculate worker totals in each of the chosen countries.
-total_Belgium = isco1$Belgium + isco2$Belgium + isco3$Belgium + isco4$Belgium + isco5$Belgium + isco6$Belgium + isco7$Belgium + isco8$Belgium + isco9$Belgium
-total_Spain = isco1$Spain + isco2$Spain + isco3$Spain + isco4$Spain + isco5$Spain + isco6$Spain + isco7$Spain + isco8$Spain + isco9$Spain
-total_Poland = isco1$Poland + isco2$Poland + isco3$Poland + isco4$Poland + isco5$Poland + isco6$Poland + isco7$Poland + isco8$Poland + isco9$Poland
+# Worker totals for each country
+worker_totals <- isco_all %>%
+  select(3:(3 + num_occup)) %>%
+  group_by(Worker) %>%
+  summarise(across(everything(), sum)) %>%
+  select(2:(num_occup + 1))
 
-# Let's merge all these datasets. We'll need a column that stores the occupation categories:
-isco1$ISCO <- 1
-isco2$ISCO <- 2
-isco3$ISCO <- 3
-isco4$ISCO <- 4
-isco5$ISCO <- 5
-isco6$ISCO <- 6
-isco7$ISCO <- 7
-isco8$ISCO <- 8
-isco9$ISCO <- 9
+names(worker_totals) <- paste0("total_", names(worker_totals))
 
-# and this gives us one large file with employment in all occupations.
-all_data <- rbind(isco1, isco2, isco3, isco4, isco5, isco6, isco7, isco8, isco9)
+# Adding worker totals to the big data frame as new columns with rows repeated for each occupation
+isco_all <- cbind(isco_all, worker_totals)
 
-# We have 9 occupations and the same time range for each, so we an add the totals by
-# adding a vector that is 9 times the previously calculated totals
-all_data$total_Belgium <- c(total_Belgium, total_Belgium, total_Belgium, total_Belgium, total_Belgium, total_Belgium, total_Belgium, total_Belgium, total_Belgium) 
-all_data$total_Spain <- c(total_Spain, total_Spain, total_Spain, total_Spain, total_Spain, total_Spain, total_Spain, total_Spain, total_Spain) 
-all_data$total_Poland <- c(total_Poland, total_Poland, total_Poland, total_Poland, total_Poland, total_Poland, total_Poland, total_Poland, total_Poland) 
+# Shares of each occupation among all workers in a period-country
+shares <- isco_all[, 3:((3 - 1) + num_occup)] / isco_all[, names(isco_all) %in% names(worker_totals)]
+names(shares) <- paste0("shares_", names(shares))
+isco_all <- cbind(isco_all, shares)
 
-# And this will give us shares of each occupation among all workers in a period-country
-all_data$share_Belgium = all_data$Belgium/all_data$total_Belgium
-all_data$share_Spain = all_data$Spain/all_data$total_Spain
-all_data$share_Poland = all_data$Poland/all_data$total_Poland
 
 # Now let's look at the task data. We want the first digit of the ISCO variable only
 library(stringr)
@@ -76,16 +74,15 @@ aggdata$isco08 <- NULL
 # We'll be interested in tracking the intensity of Non-routine cognitive analytical tasks
 # Using a framework reminiscent of the work by David Autor.
 
-#These are the ones we're interested in:
+# These are the ones we're interested in:
 # Non-routine cognitive analytical
 # 4.A.2.a.4 Analyzing Data or Information
 # 4.A.2.b.2	Thinking Creatively
 # 4.A.4.a.1	Interpreting the Meaning of Information for Others
 
 #Let's combine the data.
-library(dplyr)
 
-combined <- left_join(all_data, aggdata, by = c("ISCO" = "isco08_1dig"))
+combined <- left_join(isco_all, aggdata[,-1], by = c("ISCO" = "isco08_1dig"))
 
 # Traditionally, the first step is to standardise the task values using weights 
 # defined by share of occupations in the labour force. This should be done separately
@@ -94,92 +91,72 @@ combined <- left_join(all_data, aggdata, by = c("ISCO" = "isco08_1dig"))
 
 #install.packages("Hmisc")
 library(Hmisc)
+library(data.table)
+library(utils)
 
-# first task item
-temp_mean <- wtd.mean(combined$t_4A2a4, combined$share_Belgium)
-temp_sd <- wtd.var(combined$t_4A2a4, combined$share_Belgium) %>% sqrt()
-combined$std_Belgium_t_4A2a4 = (combined$t_4A2a4-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A2a4, combined$share_Poland)
-temp_sd <- wtd.var(combined$t_4A2a4, combined$share_Poland) %>% sqrt()
-combined$std_Poland_t_4A2a4 = (combined$t_4A2a4-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A2a4, combined$share_Spain)
-temp_sd <- wtd.var(combined$t_4A2a4, combined$share_Spain) %>% sqrt()
-combined$std_Spain_t_4A2a4 = (combined$t_4A2a4-temp_mean)/temp_sd
-
-# second task item
-temp_mean <- wtd.mean(combined$t_4A2b2, combined$share_Belgium)
-temp_sd <- wtd.var(combined$t_4A2b2, combined$share_Belgium) %>% sqrt()
-combined$std_Belgium_t_4A2b2 = (combined$t_4A2b2-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A2b2, combined$share_Poland)
-temp_sd <- wtd.var(combined$t_4A2b2, combined$share_Poland) %>% sqrt()
-combined$std_Poland_t_4A2b2 = (combined$t_4A2b2-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A2b2, combined$share_Spain)
-temp_sd <- wtd.var(combined$t_4A2b2, combined$share_Spain) %>% sqrt()
-combined$std_Spain_t_4A2b2 = (combined$t_4A2b2-temp_mean)/temp_sd
-
-# third task item
-temp_mean <- wtd.mean(combined$t_4A4a1 , combined$share_Belgium)
-temp_sd <- wtd.var(combined$t_4A4a1 , combined$share_Belgium) %>% sqrt()
-combined$std_Belgium_t_4A4a1  = (combined$t_4A4a1 -temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A4a1 , combined$share_Poland)
-temp_sd <- wtd.var(combined$t_4A4a1 , combined$share_Poland) %>% sqrt()
-combined$std_Poland_t_4A4a1  = (combined$t_4A4a1 -temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$t_4A4a1 , combined$share_Spain)
-temp_sd <- wtd.var(combined$t_4A4a1 , combined$share_Spain) %>% sqrt()
-combined$std_Spain_t_4A4a1  = (combined$t_4A4a1 -temp_mean)/temp_sd
+# Standarization of the mentioned 3 task items and all countries
+for(task in c("t_4A2a4", "t_4A2b2", "t_4A4a1")){
+  for(country in names(combined)[3:11]){
+    task_values  <- combined[,task]
+    share_values <- combined[,paste0("shares_", country)]
+    temp_mean <- wtd.mean(task_values, share_values)
+    temp_sd   <- wtd.var(task_values, share_values) %>% sqrt()
+    temp_std  <- (task_values-temp_mean)/temp_sd
+    
+    combined  <- cbind(combined, temp_std)
+    names(combined)[length(names(combined))] <- paste0("std_", country, "_", task)
+  }
+}
 
 # The next step is to calculate the `classic` task content intensity, i.e.
 # how important is a particular general task content category in the workforce
 # Here, we're looking at non-routine cognitive analytical tasks, as defined
 # by David Autor and Darron Acemoglu:
 
-combined$Belgium_NRCA <- combined$std_Belgium_t_4A2a4 + combined$std_Belgium_t_4A2b2 + combined$std_Belgium_t_4A4a1 
-combined$Poland_NRCA <- combined$std_Poland_t_4A2a4 + combined$std_Poland_t_4A2b2 + combined$std_Poland_t_4A4a1 
-combined$Spain_NRCA <- combined$std_Spain_t_4A2a4 + combined$std_Spain_t_4A2b2 + combined$std_Spain_t_4A4a1 
+for(country in names(combined)[3:11]){
+  std_col <- paste0("std_", country)
+  country_tasks_sum <- rowSums(combined[, names(combined) %like% paste0("^", std_col)])
+  combined  <- cbind(combined, country_tasks_sum)
+  names(combined)[length(names(combined))] <- paste0(country, "_NRCA")
+}
+
 
 # And we standardise NRCA in a similar way.
-temp_mean <- wtd.mean(combined$Belgium_NRCA, combined$share_Belgium)
-temp_sd <- wtd.var(combined$Belgium_NRCA, combined$share_Belgium) %>% sqrt()
-combined$std_Belgium_NRCA = (combined$Belgium_NRCA-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$Poland_NRCA, combined$share_Poland)
-temp_sd <- wtd.var(combined$Poland_NRCA, combined$share_Poland) %>% sqrt()
-combined$std_Poland_NRCA = (combined$Poland_NRCA-temp_mean)/temp_sd
-
-temp_mean <- wtd.mean(combined$Spain_NRCA, combined$share_Spain)
-temp_sd <- wtd.var(combined$Spain_NRCA, combined$share_Spain) %>% sqrt()
-combined$std_Spain_NRCA = (combined$Spain_NRCA-temp_mean)/temp_sd
+for(country in names(combined)[3:11]){
+  nrca_values  <- combined[,paste0(country, "_NRCA")]
+  share_values <- combined[,paste0("shares_", country)]
+  temp_mean <- wtd.mean(nrca_values, share_values)
+  temp_sd   <- wtd.var(nrca_values, share_values) %>% sqrt()
+  temp_std  <- (nrca_values-temp_mean)/temp_sd
+  
+  combined  <- cbind(combined, temp_std)
+  names(combined)[length(names(combined))] <- paste0("std_", country, "_NRCA")
+}
 
 # Finally, to track the changes over time, we have to calculate a country-level mean
 # Step 1: multiply the value by the share of such workers.
-combined$multip_Spain_NRCA <- (combined$std_Spain_NRCA*combined$share_Spain)
-combined$multip_Belgium_NRCA <- (combined$std_Belgium_NRCA*combined$share_Belgium)
-combined$multip_Poland_NRCA <- (combined$std_Poland_NRCA*combined$share_Poland)
+for(country in names(combined)[3:11]){
+  std_nrca_values <- combined[,paste0("std_", country, "_NRCA")]
+  share_values    <- combined[,paste0("shares_", country)]
+  multi <- std_nrca_values*share_values
+    
+  combined  <- cbind(combined, multi)
+  names(combined)[length(names(combined))] <- paste0("multip_", country, "_NRCA")
+}
 
 # Step 2: sum it up (it basically becomes another weighted mean)
-agg_Spain <-aggregate(combined$multip_Spain_NRCA, by=list(combined$TIME),
-                      FUN=sum, na.rm=TRUE)
-agg_Belgium <-aggregate(combined$multip_Belgium_NRCA, by=list(combined$TIME),
-                      FUN=sum, na.rm=TRUE)
-agg_Poland <-aggregate(combined$multip_Poland_NRCA, by=list(combined$TIME),
-                      FUN=sum, na.rm=TRUE)
+aggregates <- combined %>%
+  group_by(TIME) %>%
+  summarise(across(starts_with(paste0("multip_")), sum)) 
+
+aggregates_melt <- melt(aggregates, id.vars="TIME", 
+                        variable.name="Country")
 
 # We can plot it now!
-plot(agg_Poland$x, xaxt="n")
-axis(1, at=seq(1, 40, 3), labels=agg_Poland$Group.1[seq(1, 40, 3)])
-
-plot(agg_Spain$x, xaxt="n")
-axis(1, at=seq(1, 40, 3), labels=agg_Poland$Group.1[seq(1, 40, 3)])
-
-plot(agg_Belgium$x, xaxt="n")
-axis(1, at=seq(1, 40, 3), labels=agg_Poland$Group.1[seq(1, 40, 3)])
-
+ggplot(aggregates_melt, aes(x=TIME, y=value)) +
+  geom_point() +
+  facet_wrap(~Country, scales = "free") + 
+  scale_x_discrete(breaks = 1)
 
 # If this code gets automated and cleaned properly,
 #  you should be able to easily add other countries as well as other tasks.
