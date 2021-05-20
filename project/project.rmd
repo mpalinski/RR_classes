@@ -41,6 +41,7 @@ library(data.table)
 library(kableExtra)
 library(hrbrthemes)
 library(plotly)
+library(urca)
 ```
 
 ## Intro
@@ -117,4 +118,32 @@ p <- ggplot(quotes_long, aes(x = Date)) +
 
 ggplotly(p)
 ```
+
+## Stationarity analysis
+
+```{r, eval=T}
+# First column is to be tested for stationarity
+series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
+test_statistic = 1
+critical_value = 0
+i = -1
+
+while(test_statistic >= critical_value){
+  test <- ur.df(series_to_test, type = "none")
+  test_statistic <- test@teststat[1] 
+  critical_value <- test@cval[1, 2]
+  series_to_test <- diff.xts(series_to_test, na.pad = F)
+  i = i + 1   # counter for differentiating order
+}
+# ADF test summary
+summary(test)
+
+# Stationary plot
+ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_to_test))) +
+  geom_line() +
+  theme_modern_rc() +
+  labs(x = "Date", y = "Value")
+```
+
+
 
