@@ -3,12 +3,8 @@ title: "Yahoo Finance stock price analysis"
 author: "Grzegorz Chadysz, Konrad Archiciński"
 date: "`r format(Sys.time(), '%d.%m.%Y')`"
 output:
-  prettydoc::html_pretty:
-    theme: architect
-    highlight: github
-    toc: yes
-  html_document:
-    toc: yes
+  rmdformats::readthedown:
+    self_contained: true
 params:
   Company:
     value: "MSFT"
@@ -44,22 +40,20 @@ library(plotly)
 library(urca)
 ```
 
-## Intro
+***
 
-Checking parameters:
+# Intro
 
-```{r}
-print(params$Company)
-print(params$From)
-print(params$To)
-print(params$Columns)
-```
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 
-## Data
+***
 
-Getting the quotes:
+# Data
+
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 
 ```{r, echo=F, message=F, warning=F}
+# Getting quotes
 quotes <- getSymbols(
   params$Company,
   auto.assign = F,
@@ -67,8 +61,6 @@ quotes <- getSymbols(
   to = params$To
 )
 ```
-
-Displaying selected columns:
 
 ```{r, echo=F, warning=F}
 columns_all <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
@@ -90,60 +82,170 @@ kable(tail(quotes), row.names = F, caption = "Preview of the data") %>%
   kable_styling(bootstrap_options = c("striped"))
 ```
 
-## Plot
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+
+***
+
+# Plot
 
 ```{r, echo=F, warning=F, message=F}
 # Melting the data into long format in order to plot more efficiently
 quotes_long <- melt(quotes, id = "Date")
 ```
 
-### Ggplot
 
-```{r, echo=F, out.width="100%"}
+```{r, echo=F, out.width="100%", include=F}
+# Simple GGplot
 ggplot(quotes_long, aes(x = Date)) +
   geom_line(aes(y = value)) +
   theme_modern_rc() +
   facet_wrap(~variable, scales = "free") +
-  theme(strip.text = element_text(color = "white")) 
+  theme(strip.text = element_text(color = "white")) +
+  scale_x_date(date_labels = "%m/%y") +
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) +
+  labs(y = "Value")
 ```
 
-### Plotly
+Plotly interactive graph:
 
 ```{r, echo=F, out.width="100%", warning=F}
 p <- ggplot(quotes_long, aes(x = Date)) +
   geom_line(aes(y = value)) +
   theme_modern_rc() +
   facet_wrap(~variable, scales = "free") +
-  theme(strip.text = element_text(color = "white")) 
+  theme(strip.text = element_text(color = "white")) +
+  scale_x_date(date_labels = "%m/%Y") +
+  theme(axis.text.x = element_text(angle=45, hjust = 1)) +
+  labs(x=NULL, y=NULL)
 
 ggplotly(p)
 ```
 
-## Stationarity analysis
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 
-```{r, eval=T}
+***
+
+# Stationarity analysis {.tabset .tabset-pills}
+
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+
+## Trend
+
+```{r, echo=F, eval=T, out.width="100%"}
 # First column is to be tested for stationarity
 series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
-test_statistic = 1
-critical_value = 0
-i = -1
 
+# First test
+test <- ur.df(series_to_test, type = "trend")
+test_statistic <- test@teststat[1]
+critical_value <- test@cval[1, 2]
+i = 0
+
+# If not stationary, then check differences until stationary
 while(test_statistic >= critical_value){
-  test <- ur.df(series_to_test, type = "none")
+  series_to_test <- diff.xts(series_to_test, na.pad = F)
+  test <- ur.df(series_to_test, type = "trend")
   test_statistic <- test@teststat[1] 
   critical_value <- test@cval[1, 2]
-  series_to_test <- diff.xts(series_to_test, na.pad = F)
   i = i + 1   # counter for differentiating order
 }
+
 # ADF test summary
 summary(test)
 
 # Stationary plot
-ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_to_test))) +
+p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_to_test))) +
   geom_line() +
   theme_modern_rc() +
-  labs(x = "Date", y = "Value")
+  labs(x = "Date", y = "Value") +
+  scale_x_date(date_labels = "%m/%Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(p)
 ```
 
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
 
+***
 
+## Drift
+
+```{r, echo=F, eval=T, out.width="100%"}
+# First column is to be tested for stationarity
+series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
+
+# First test
+test <- ur.df(series_to_test, type = "drift")
+test_statistic <- test@teststat[1]
+critical_value <- test@cval[1, 2]
+i = 0
+
+# If not stationary, then check differences until stationary
+while(test_statistic >= critical_value){
+  series_to_test <- diff.xts(series_to_test, na.pad = F)
+  test <- ur.df(series_to_test, type = "drift")
+  test_statistic <- test@teststat[1] 
+  critical_value <- test@cval[1, 2]
+  i = i + 1   # counter for differentiating order
+}
+
+# ADF test summary
+summary(test)
+
+# Stationary plot
+p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_to_test))) +
+  geom_line() +
+  theme_modern_rc() +
+  labs(x = "Date", y = "Value") +
+  scale_x_date(date_labels = "%m/%Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(p)
+```
+
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
+
+***
+
+## None
+
+```{r, echo=F, eval=T, out.width="100%"}
+# First column is to be tested for stationarity
+series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
+
+# First test
+test <- ur.df(series_to_test, type = "none")
+test_statistic <- test@teststat[1]
+critical_value <- test@cval[1, 2]
+i = 0
+
+# If not stationary, then check differences until stationary
+while(test_statistic >= critical_value){
+  series_to_test <- diff.xts(series_to_test, na.pad = F)
+  test <- ur.df(series_to_test, type = "none")
+  test_statistic <- test@teststat[1] 
+  critical_value <- test@cval[1, 2]
+  i = i + 1   # counter for differentiating order
+}
+
+# ADF test summary
+summary(test)
+
+# Stationary plot
+p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_to_test))) +
+  geom_line() +
+  theme_modern_rc() +
+  labs(x = "Date", y = "Value") +
+  scale_x_date(date_labels = "%m/%Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(p)
+```
+
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
+
+***
+
+# Forecasting
+
+"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
