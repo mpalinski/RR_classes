@@ -28,10 +28,16 @@ params:
     max: !r lubridate::today()
   Columns: 
     value: "None"
-    label: "Which quotes should be included? (remove with DEL)"
-    choices: ["Open", "High", "Low", "Close", "Volume", "Adjusted"]
+    label: "Which prices should be included? (remove with DEL)"
+    choices: ["Open", "High", "Low", "Close", "Adjusted", "Volume"]
     input: select
     multiple: yes
+  Forecast:
+    value: 0
+    input: slider
+    min: 0
+    max: 20
+    step: 1
 ---
 
 ```{r setup, include=FALSE}
@@ -56,9 +62,9 @@ invisible(Sys.setlocale("LC_TIME", "English"))
 
 ```{r, echo=F}
 # "Dictionary" of companies and their stock abbreviations
-dict <- list("AAPL", "INTC", "MSFT", "NVDA", "AMD", "GM", "F", "TM")
+dict <- list("AAPL", "INTC", "MSFT", "NVDA", "AMD", "GM", "F", "TM") # Add another company here - abbreviation
 
-names(dict) <- c(
+names(dict) <- c( 
   "Apple Inc.",
   "Intel Corporation",
   "Microsoft Corporation",
@@ -66,17 +72,25 @@ names(dict) <- c(
   "Advanced Micro Devices, Inc.",
   "General Motors Company",
   "Ford Motor Company",
-  "Toyota Motor Corporation"
-)
+  "Toyota Motor Corporation" 
+) # Add company's full name here and to the parameter's choice list
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+This R Markdown report enables to analyze time series from Yahoo Finance of user's choice. The report takes user input and creates tables, plots and tests based on that input and allows to thoroughly analyze different quotes and time spans without interfering with the code. 
+
+This version of report provides several tech and motor companies to choose from, however, should one want to analyze another, he/she should add the abbreviation and company's full name to the parameter's choice list and dictionary and the report would be good to go. Default time range spans back a thousand days from the day of running the report. Should the multiple choice for the quotes be left empty, then as default, all prices are included in the analysis. Last parameter determines the forecast period in days.
 
 ***
 
 # Data
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+Gathering of the time series data is performed via `getSymbols` function provided in `quantmod` package. More information about the package can be found [here](https://www.quantmod.com/documentation/getSymbols.html). Data used in this particular report is characterized by following parameters:
+
+- Company name: `r params$Company`
+- Company abbreviation: `r dict[[params$Company]]`
+- Time span: `r params$From`  -  `r params$To`
+- Quotes: `r params$Columns`
+- Forecast: `r params$Forecast` days
 
 ```{r, echo=F, message=F, warning=F}
 # Getting quotes
@@ -88,9 +102,11 @@ quotes <- getSymbols(
 )
 ```
 
+Below you can see a glimpse of the first and last few observations of the data of your choice.
+
 ```{r, echo=F, warning=F}
 columns_all <-
-  c("Open", "High", "Low", "Close", "Volume", "Adjusted")
+  c("Open", "High", "Low", "Close", "Adjusted", "Volume")
 
 # If no columns were selected then all are selected by default
 if (params$Columns == "None") {
@@ -105,34 +121,87 @@ quotes <- subset(quotes, select = columns_to_keep)
 # Changing to data frame format
 quotes <- data.frame(Date = index(quotes), coredata(quotes))
 
-kable(head(quotes), row.names = F, caption = "Oldest observations") %>%
+kable(tail(quotes) %>% map_df(rev), format.args = list(big.mark = " "), row.names = F, caption = "Most recent observations") %>%
   kable_styling(bootstrap_options = c("hover"))
 
-kable(tail(quotes), row.names = F, caption = "Most recent observations") %>%
+kable(head(quotes) %>% map_df(rev), format.args = list(big.mark = " "), row.names = F, caption = "Oldest observations") %>%
   kable_styling(bootstrap_options = c("hover"))
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+***
+
+# Descriptive statistics
+
+## General 
+
+```{r, echo=F}
+descriptive <- quotes[,-1] %>% skimr::skim()
+descriptive <- descriptive[,-c(1,3,4,12)]
+names(descriptive) <- c("Variable", "Mean", "Std.", "Min", "1st quartile", "Median", "3rd quartile", "Max")
+```
+
+Below you can find a handful of descriptive statistics regarding the columns specified during knitting. 
+
+```{r, echo=F, out.width="100%"}
+kable(
+  descriptive,
+  digits = 2,
+  format.args = list(big.mark = " ", scientific = F),
+  row.names = F,
+  caption = "Stats per variable"
+) %>%
+  kable_styling(bootstrap_options = c("hover"))
+```
+
+## Log returns {.tabset}
+
+This chapter provides insight on the log returns of selected ([info](https://quantivity.wordpress.com/2011/02/21/why-log-returns/) on why log returns instead of simple returns is used in finance).
+
+```{r, results="asis", echo=FALSE, message=FALSE, warning=FALSE}
+# "not like" function
+`%notlike%` <- Negate(`%like%`)
+
+# Creating xts format of quotes
+quotes_xts <- xts(quotes[,names(quotes) %notlike% "Volume" & names(quotes) %notlike% "Date"], 
+                  order.by = quotes[,1])
+
+# Displaying on separate tabsets
+for (i in 1:length(names(quotes_xts))) {
+  cat("###", names(quotes_xts)[i], " \n")
+  
+  return <- dailyReturn(quotes_xts[,i], type='log')
+  
+  p <- ggplot(return, aes(x = daily.returns)) +
+    geom_histogram(color = "white", bins = 30, aes(y=..density..)) +
+    geom_line(aes(y = ..density..), color = "green", size = 1.2, alpha = 0.8, stat = 'density') +  
+    theme_modern_rc() +
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 6), expand = c(0,0)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 5), expand = c(0,0))+
+    labs(y = NULL, x = paste("Log return of", names(quotes_xts)[i])) +
+    theme(axis.title.x = element_text(size = 11))
+  
+  print(p)  
+  
+  cat("\n \n")
+}
+```
+
+## {-}
 
 ***
 
 # Plots
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 ```{r, echo=F, warning=F, message=F}
 # Melting the data into long format in order to plot more efficiently
 quotes_long <- melt(quotes, id = "Date")
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-***
-
 ## Plotly interactive graph
 
 ```{r, echo=F, out.width="100%", warning=F}
-# "not like" function
-`%notlike%` <- Negate(`%like%`)
-
 # Plot stock prices (no volume)
 p <-
   ggplot(quotes_long[quotes_long$variable %notlike% "Volume", ], aes(x = Date)) +
@@ -172,35 +241,6 @@ if(any(quotes_long$variable %like% "Volume")) {
 ```
 
 ***
-
-```{r, echo=F}
-gg_list <- list()
-
-for (i in 1:(ncol(quotes) - 1)) {
-  gg_list[[i]] <-
-    ggplot(quotes, aes_string(x = colnames(quotes)[1])) +
-      geom_line(aes_string(y = colnames(quotes)[i + 1])) +
-      theme_modern_rc() +
-      scale_x_date(date_labels = "%m/%Y") +
-      scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-      labs(y = "Value")
-}
-```
-
-## Each on separate tab {.tabset}
-
-```{r, results="asis", echo=FALSE}
-for (i in 1:length(gg_list)) {
-  cat("###", colnames(quotes)[i+1], " \n")
-  print(gg_list[[i]]) # ggplotly does not work
-  cat(" \n \n")
-}
-```
-
-# Descriptive statistics
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 # Stationarity analysis {.tabset .tabset-fade}
 
@@ -242,7 +282,9 @@ p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_t
 ggplotly(p)
 ```
 
-According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
+<br>
+
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s). The program differentiated the series until it found order where value of `test-statistic`: `r test_statistic` is smaller than `tau3 5pct`: `r critical_value`.
 
 ***
 
@@ -281,7 +323,9 @@ p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_t
 ggplotly(p)
 ```
 
-According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
+<br>
+
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s). The program differentiated the series until it found order where value of `test-statistic`: `r test_statistic` is smaller than `tau3 5pct`: `r critical_value`.
 
 ***
 
@@ -320,10 +364,14 @@ p <- ggplot(series_to_test, aes(x = index(series_to_test), y = coredata(series_t
 ggplotly(p)
 ```
 
-According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s).
+<br>
+
+According to the ADF test the series are integrated of order `r i`, or in other words have become stationary after `r i` differentiation(s). The program differentiated the series until it found order where value of `test-statistic`: `r test_statistic` is smaller than `tau3 5pct`: `r critical_value`.
 
 ***
 
-# Forecasting
+# Forecasting?
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+***
