@@ -86,11 +86,11 @@ This version of report provides several tech and motor companies to choose from,
 
 Gathering of the time series data is performed via `getSymbols` function provided in `quantmod` package. More information about the package can be found [here](https://www.quantmod.com/documentation/getSymbols.html). Data used in this particular report is characterized by following parameters:
 
-- Company name: `r params$Company`
-- Company abbreviation: `r dict[[params$Company]]`
-- Time span: `r params$From`  -  `r params$To`
-- Quotes: `r params$Columns`
-- Forecast: `r params$Forecast` days
+- Company name: ``r params$Company``
+- Company abbreviation: ``r dict[[params$Company]]``
+- Time span: ``r params$From``  -  ``r params$To``
+- Quotes: ``r params$Columns``
+- Forecast: ``r params$Forecast`` days
 
 ```{r, echo=F, message=F, warning=F}
 # Getting quotes
@@ -135,12 +135,18 @@ kable(head(quotes) %>% map_df(rev), format.args = list(big.mark = " "), row.name
 ## General 
 
 ```{r, echo=F}
+# "not like" function
+`%notlike%` <- Negate(`%like%`)
+
+# Getting the descriptive stats
 descriptive <- quotes[,-1] %>% skimr::skim()
 descriptive <- descriptive[,-c(1,3,4,12)]
 names(descriptive) <- c("Variable", "Mean", "Std.", "Min", "1st quartile", "Median", "3rd quartile", "Max")
+
+descriptive_no_volume <- descriptive[descriptive$Variable %notlike% "Volume",]
 ```
 
-Below you can find a handful of descriptive statistics regarding the columns specified during knitting. 
+Below you can find a handful of descriptive statistics regarding the columns specified during knitting. Maximum price recorded for ``r params$Company`` during ``r params$From`` - ``r params$To`` period was \$`r round(max(descriptive_no_volume[,-1]),2)`, while the minimum was \$`r round(min(descriptive_no_volume[,-1]),2)`. 
 
 ```{r, echo=F, out.width="100%"}
 kable(
@@ -153,14 +159,13 @@ kable(
   kable_styling(bootstrap_options = c("hover"))
 ```
 
-## Log returns {.tabset}
+## Log returns {.tabset .tabset-fade}
 
-This chapter provides insight on the log returns of selected ([info](https://quantivity.wordpress.com/2011/02/21/why-log-returns/) on why log returns instead of simple returns is used in finance).
+This chapter provides insight on the log returns of selected prices. Log returns are more widely used in finance than simple returns for a number of reasons, one being that prices are assumed to be log-normally distributed. That is not always the case as can be seen on the graphs below. Nevertheless, this assumption results in logarithms of prices to be normally distributed. More information on this topic can be found [here](https://quantivity.wordpress.com/2011/02/21/why-log-returns/). 
+
+Each of the graphs below represents a histogram of log returns of certain price, as well as **kernel density estimate** (**white line**). It is plotted agains a **normal distribution** (**red line**) with mean and standard deviation calculated separately for each graph.
 
 ```{r, results="asis", echo=FALSE, message=FALSE, warning=FALSE}
-# "not like" function
-`%notlike%` <- Negate(`%like%`)
-
 # Creating xts format of quotes
 quotes_xts <- xts(quotes[,names(quotes) %notlike% "Volume" & names(quotes) %notlike% "Date"], 
                   order.by = quotes[,1])
@@ -172,11 +177,26 @@ for (i in 1:length(names(quotes_xts))) {
   return <- dailyReturn(quotes_xts[,i], type='log')
   
   p <- ggplot(return, aes(x = daily.returns)) +
-    geom_histogram(color = "white", bins = 30, aes(y=..density..)) +
-    geom_line(aes(y = ..density..), color = "green", size = 1.2, alpha = 0.8, stat = 'density') +  
+    geom_histogram(color = "#57a6d4", bins = 30, aes(y = ..density..)) +
+    geom_line(
+      aes(y = ..density..),
+      color = "white",
+      size = 1,
+      alpha = 0.8,
+      stat = 'density'
+    ) +
+    stat_function(fun = dnorm,
+                  args = list(
+                    mean = mean(return$daily.returns),
+                    sd = sd(return$daily.returns)
+                  ),
+                  color = "red",
+                  size = 1) +
     theme_modern_rc() +
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 6), expand = c(0,0)) +
-    scale_x_continuous(breaks = scales::pretty_breaks(n = 5), expand = c(0,0))+
+    scale_y_continuous(breaks = scales::pretty_breaks(n = 6),
+                       expand = c(0, 0)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 5),
+                       expand = c(0, 0)) +
     labs(y = NULL, x = paste("Log return of", names(quotes_xts)[i])) +
     theme(axis.title.x = element_text(size = 11))
   
@@ -190,7 +210,7 @@ for (i in 1:length(names(quotes_xts))) {
 
 ***
 
-# Plots
+# Plotting
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
@@ -198,8 +218,6 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor i
 # Melting the data into long format in order to plot more efficiently
 quotes_long <- melt(quotes, id = "Date")
 ```
-
-## Plotly interactive graph
 
 ```{r, echo=F, out.width="100%", warning=F}
 # Plot stock prices (no volume)
@@ -371,6 +389,8 @@ According to the ADF test the series are integrated of order `r i`, or in other 
 ***
 
 # Forecasting?
+
+## ARIMA?
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
