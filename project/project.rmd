@@ -4,7 +4,7 @@ subtitle: "`r params$Company`"
 author: "Grzegorz Chadysz, Konrad Archiciński"
 date: "`r format(Sys.time(), '%d.%m.%Y')`"
 output:
-  rmdformats::readthedown:
+  rmdformats::downcute:
     self_contained: true
 params:
   Company:
@@ -216,7 +216,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor i
 
 ```{r, echo=F, warning=F, message=F}
 # Melting the data into long format in order to plot more efficiently
-quotes_long <- melt(quotes, id = "Date")
+quotes_long <- melt(as.data.table(quotes), id = "Date")
 ```
 
 ```{r, echo=F, out.width="100%", warning=F}
