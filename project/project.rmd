@@ -32,10 +32,10 @@ params:
     choices: ["Open", "High", "Low", "Close", "Adjusted", "Volume"]
     input: select
     multiple: yes
-  Forecast:
-    value: 0
+  SimulationPaths:
+    value: 1
     input: slider
-    min: 0
+    min: 1
     max: 20
     step: 1
 ---
@@ -52,6 +52,7 @@ library(kableExtra)
 library(hrbrthemes)
 library(plotly)
 library(urca)
+library(forecast)
 
 invisible(Sys.setlocale("LC_TIME", "English"))
 ```
@@ -90,7 +91,7 @@ Gathering of the time series data is performed via `getSymbols` function provide
 - Company abbreviation: ``r dict[[params$Company]]``
 - Time span: ``r params$From``  -  ``r params$To``
 - Quotes: ``r params$Columns``
-- Forecast: ``r params$Forecast`` days
+- SimulationPaths: ``r params$SimulationPaths`` days
 
 ```{r, echo=F, message=F, warning=F}
 # Getting quotes
@@ -391,6 +392,31 @@ According to the ADF test the series are integrated of order `r i`, or in other 
 # Forecasting?
 
 ## ARIMA?
+
+```{r, echo=F, eval=T, warning=F, out.width="100%"}
+fit2 = Arima(return, order = c(4,0,4), include.drift = F)
+
+last_return <- last(return, 1)
+last_date <- index(last_return)
+last_value <- coredata(last_return)
+
+sims_num <- params$SimulationPaths
+
+df <- data.frame(date=seq(last_date, by="day", length.out=32))
+
+for(i in 1:sims_num) {
+  df[ , ncol(df) + 1] <- c(last_value, simulate(fit2, nsim=31))
+  colnames(df)[ncol(df)] <- paste0("Path", i)
+}
+
+df <- melt(data.table(df),  id.vars = 'date', variable.name = 'series')
+
+ggplot(df, aes(date,value)) + geom_line(aes(colour = series)) +
+  theme_modern_rc() +
+  labs(x = "Date", y = "Value") +
+  scale_x_date(date_labels = "%m/%Y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
