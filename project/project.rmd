@@ -28,15 +28,15 @@ params:
     max: !r lubridate::today()
   Columns: 
     value: "None"
-    label: "Which prices should be included? (remove with DEL)"
+    label: "Which indicators should be included? (remove with DEL)"
     choices: ["Open", "High", "Low", "Close", "Adjusted", "Volume"]
     input: select
     multiple: yes
   SimulationPaths:
-    value: 1
+    value: 10
     input: slider
     min: 1
-    max: 20
+    max: 30
     step: 1
 ---
 
@@ -52,7 +52,7 @@ library(kableExtra)
 library(hrbrthemes)
 library(plotly)
 library(urca)
-library(forecast)
+library(rugarch)
 
 invisible(Sys.setlocale("LC_TIME", "English"))
 ```
@@ -91,7 +91,7 @@ Gathering of the time series data is performed via `getSymbols` function provide
 - Company abbreviation: ``r dict[[params$Company]]``
 - Time span: ``r params$From``  -  ``r params$To``
 - Quotes: ``r params$Columns``
-- SimulationPaths: ``r params$SimulationPaths`` days
+- Simulation paths: ``r params$SimulationPaths``
 
 ```{r, echo=F, message=F, warning=F}
 # Getting quotes
@@ -389,33 +389,76 @@ According to the ADF test the series are integrated of order `r i`, or in other 
 
 ***
 
-# Forecasting?
+# Simulation
 
-## ARIMA?
+## ARMA(1,1)-GARCH(1,1)
 
 ```{r, echo=F, eval=T, warning=F, out.width="100%"}
-fit2 = Arima(return, order = c(4,0,4), include.drift = F)
+spec_arma_1_1_garch_1_1 <- ugarchspec(
+  variance.model = list(
+    model = "sGARCH",
+    garchOrder = c(1, 1),
+    submodel = NULL,
+    external.regressors = NULL,
+    variance.targeting = FALSE
+  ),
+  
+  mean.model     = list(
+    armaOrder = c(1, 1),
+    external.regressors = NULL,
+    distribution.model = "norm",
+    start.pars = list(),
+    fixed.pars = list()
+  )
+)
 
-last_return <- last(return, 1)
-last_date <- index(last_return)
-last_value <- coredata(last_return)
+garch_model <-
+  ugarchfit(spec = spec_arma_1_1_garch_1_1,
+            data = return,
+            solver.control = list(trace = 0))
+
+last_return <- last(return, 30)
+last_dates <- index(last_return)
+last_values <- coredata(last_return)
 
 sims_num <- params$SimulationPaths
 
-df <- data.frame(date=seq(last_date, by="day", length.out=32))
+simulations <-
+  data.frame(date = c(first(last_dates, 29), seq(
+    last(last_dates, 1), by = "day", length.out = 30
+  )))
 
-for(i in 1:sims_num) {
-  df[ , ncol(df) + 1] <- c(last_value, simulate(fit2, nsim=31))
-  colnames(df)[ncol(df)] <- paste0("Path", i)
+for (i in 1:sims_num) {
+  simulated <- ugarchsim(garch_model, n.sim = 29)
+  simulations[, ncol(simulations) + 1] <- c(last_values, simulated@simulation$seriesSim)
+  colnames(simulations)[ncol(simulations)] <- paste0("Path", i)
 }
 
-df <- melt(data.table(df),  id.vars = 'date', variable.name = 'series')
+simulations <-
+  melt(data.table(simulations),  id.vars = 'date', variable.name = 'series')
 
-ggplot(df, aes(date,value)) + geom_line(aes(colour = series)) +
+ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
   theme_modern_rc() +
+  geom_vline(
+    xintercept = last(last_dates, 1),
+    color = "white",
+    linetype = "dashed",
+    size = 1
+  ) +
+  geom_text(
+    aes(
+      x = last(last_dates, 1),
+      label = "simulation start\n",
+      y = max(simulations$value)*0.66
+    ),
+    colour = "white",
+    angle = 90,
+    text = element_text(size = 11)
+  ) +
   labs(x = "Date", y = "Value") +
   scale_x_date(date_labels = "%m/%Y") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
 ```
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
