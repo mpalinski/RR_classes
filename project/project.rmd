@@ -419,15 +419,16 @@ garch_model <-
 
 last_return <- last(return, 30)
 last_dates <- index(last_return)
+last_date <- last(last_dates, 1)
 last_values <- coredata(last_return)
 
 sims_num <- params$SimulationPaths
 
 simulations <-
   data.frame(date = c(first(last_dates, 29), seq(
-    last(last_dates, 1), by = "day", length.out = 30
+    last_date, by = "day", length.out = 30
   )),
-  original = c(last_values, rep(NA, 29)))
+  historical = c(last_values, rep(NA, 29)))
 
 for (i in 1:sims_num) {
   simulated <- ugarchsim(garch_model, n.sim = 29)
@@ -447,27 +448,37 @@ p <-
   ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
   theme_modern_rc() +
   geom_vline(
-    xintercept = last(last_dates, 1),
+    xintercept = last_date,
     color = "white",
     linetype = "dashed",
     size = 1
   ) +
-  geom_text(
-    aes(
-      x = last(last_dates, 1),
-      label = "simulation start\n",
-      y = max(simulations$value) * 0.66
+  labs(
+    title = paste(
+      params$Company,
+      "historical returns \n  with simulated ARMA(1,1)-GARCH(1,1) future paths"
     ),
-    colour = "white",
-    angle = 90,
-    text = element_text(size = 11)
+    x = "Date",
+    y = "Return"
   ) +
-  labs(x = "Date", y = "Value") +
   scale_x_date(date_labels = "%m/%Y") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "none")
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(size = 14),
+    legend.position = "none"
+  )
 
-ggplotly(p)
+ggplotly(p, dynamicTicks = TRUE) %>%
+  layout(
+    annotations = list(
+      x = last_date,
+      y = max(simulations$value, na.rm = TRUE) * 0.66,
+      textangle = 270,
+      align = "right",
+      text = paste("simulation start\n", last_date, "\n \n "),
+      showarrow = F
+    )
+  )
 ```
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
