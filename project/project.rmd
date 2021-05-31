@@ -426,18 +426,25 @@ sims_num <- params$SimulationPaths
 simulations <-
   data.frame(date = c(first(last_dates, 29), seq(
     last(last_dates, 1), by = "day", length.out = 30
-  )))
+  )),
+  original = c(last_values, rep(NA, 29)))
 
 for (i in 1:sims_num) {
   simulated <- ugarchsim(garch_model, n.sim = 29)
-  simulations[, ncol(simulations) + 1] <- c(last_values, simulated@simulation$seriesSim)
+  simulations[, ncol(simulations) + 1] <-
+    c(rep(NA, 29),
+      last(last_values, 1),
+      simulated@simulation$seriesSim)
   colnames(simulations)[ncol(simulations)] <- paste0("Path", i)
 }
 
 simulations <-
-  melt(data.table(simulations),  id.vars = 'date', variable.name = 'series')
+  melt(data.table(simulations),
+       id.vars = 'date',
+       variable.name = 'series')
 
-ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
+p <-
+  ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
   theme_modern_rc() +
   geom_vline(
     xintercept = last(last_dates, 1),
@@ -449,7 +456,7 @@ ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
     aes(
       x = last(last_dates, 1),
       label = "simulation start\n",
-      y = max(simulations$value)*0.66
+      y = max(simulations$value) * 0.66
     ),
     colour = "white",
     angle = 90,
@@ -459,6 +466,8 @@ ggplot(simulations, aes(date, value)) + geom_line(aes(colour = series)) +
   scale_x_date(date_labels = "%m/%Y") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
+
+ggplotly(p)
 ```
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
