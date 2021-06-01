@@ -264,7 +264,7 @@ if(any(quotes_long$variable %like% "Volume")) {
 
 # Stationarity analysis {.tabset .tabset-fade}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+To test the stationarity Augmented Dickey–Fuller test has been chosen, it is one of the most known and widely used tests for this topic. ADF null hypothesis states that there is a unit root. The alternate hypothesis differs slightly according to used equation. The basic alternate is that the time series is stationary (or trend-stationary).
 
 ```{r, echo=F}
 # Condition for stationarity testing to happen - minimum 15 obs 
