@@ -19,7 +19,7 @@ params:
               "Ford Motor Company",
               "Toyota Motor Corporation"]
   From: 
-    value: !r lubridate::today() - 20
+    value: !r lubridate::today() - 1000
     input: date
     max: !r lubridate::today()
   To:
@@ -104,7 +104,7 @@ quotes <- getSymbols(
 )
 ```
 
-Below you can see a glimpse of the first and last few observations of the data of your choice.
+Below you can see a glimpse of the first and last few observations of the data of your choice. There are ``r nrow(quotes)`` observations in total.
 
 ```{r, echo=F, warning=F}
 columns_all <-
@@ -148,7 +148,7 @@ names(descriptive) <- c("Variable", "Mean", "Std.", "Min", "1st quartile", "Medi
 descriptive_no_volume <- descriptive[descriptive$Variable %notlike% "Volume",]
 ```
 
-Below you can find a handful of descriptive statistics regarding the columns specified during knitting. Maximum price recorded for ``r params$Company`` during ``r params$From`` - ``r params$To`` period was \$`r round(max(descriptive_no_volume[,-1]),2)`, while the minimum was \$`r round(min(descriptive_no_volume[,-1]),2)`. Number of observations between the periods is equal to ``r nrow(quotes)``.
+Below you can find a handful of descriptive statistics regarding the columns specified during knitting. Maximum price recorded for ``r params$Company`` during ``r params$From`` - ``r params$To`` period was \$`r round(max(descriptive_no_volume[,-1]),2)`, while the minimum was \$`r round(min(descriptive_no_volume[,-1]),2)`. Number of observations between the dates is equal to ``r nrow(quotes)``.
 
 ```{r, echo=F, out.width="100%"}
 kable(
@@ -214,7 +214,7 @@ for (i in 1:dim(quotes_xts)[2]) {
 
 # Plotting
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+This chapter provides graphical visualisation of the data. The graph is made using `ggplotly` package and enables user to zoom, pan, hover over observations to obtain tooltip info and more. Number of columns that are displayed on the graph is equal to ``r  (length(quotes)-1)`` and should the `Volume` column have been selected, it would appear on a separate graph below the price graph. In case it has not been chosen, only price graph would appear. Nevertheless, both graphs have the same functionalities.
 
 ```{r, echo=F, warning=F, message=F}
 # Melting the data into long format in order to plot more efficiently
@@ -238,7 +238,7 @@ p <-
 ggplotly(p, dynamicTicks = TRUE)
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+<br>
 
 ```{r, echo=F, out.width="100%"}
 # Plot volume if it was chosen
@@ -267,27 +267,27 @@ if(any(quotes_long$variable %like% "Volume")) {
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 ```{r, echo=F}
-# If the time span is shorter than 15 days, the stationarity testing will not happen 
-test_minimum = T
-display_message = F
-if(params$To - params$From < 15){
-  test_minimum = F
-  display_message = T
+# Condition for stationarity testing to happen - minimum 15 obs 
+condition = T
+test_message = F
+if(nrow(quotes) < 15){
+  condition = F
+  test_message = T
   test_statistic = "N/A"
   critical_value = "N/A"
   i = "N/A"
 }
 ```
 
-```{r, echo=F, eval=display_message}
-print("Too few observations to conduct stattionarity testing using ADF test.")
-print("Time span should be longer than 15 days.")
-print(paste("Time span you selected was", params$To - params$From, "days long."))
+```{r, echo=F, eval=test_message}
+print("Too few observations to conduct stationarity testing.")
+print("Data should have at least 15 observations, which is roughly 3 weeks.")
+print(paste("Time span you selected had", nrow(quotes), "observations."))
 ```
 
 ## Trend
 
-```{r, echo=F, eval=test_minimum, out.width="100%"}
+```{r, echo=F, eval=condition, out.width="100%"}
 # First column is to be tested for stationarity
 series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
 
@@ -329,7 +329,7 @@ According to the ADF test the series are integrated of order ``r i``, or in othe
 
 ## Drift
 
-```{r, echo=F, eval=test_minimum, out.width="100%"}
+```{r, echo=F, eval=condition, out.width="100%"}
 # First column is to be tested for stationarity
 series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
 
@@ -370,7 +370,7 @@ According to the ADF test the series are integrated of order ``r i``, or in othe
 
 ## None
 
-```{r, echo=F, eval=test_minimum, out.width="100%"}
+```{r, echo=F, eval=condition, out.width="100%"}
 # First column is to be tested for stationarity
 series_to_test <- xts(x = quotes[[2]], order.by = quotes[[1]])
 
@@ -411,9 +411,27 @@ According to the ADF test the series are integrated of order ``r i``, or in othe
 
 # Simulation
 
+
+
 ## ARMA(1,1)-GARCH(1,1)
 
-```{r, echo=F, eval=T, warning=F, out.width="100%"}
+```{r, echo=F}
+# Condition for simulation to happen - minimum 100 obs.
+condition = T
+sim_message = F
+if(nrow(quotes) < 100){
+  condition = F
+  sim_message = T
+}
+```
+
+```{r, echo=F, eval=sim_message}
+print("Too few observations to conduct meaningful GARCH simulations.")
+print("Data should have at least 100 observations, which is roughly 5 months.")
+print(paste("Time span you selected had", nrow(quotes), "observations."))
+```
+
+```{r, echo=F, eval=condition, warning=F, out.width="100%"}
 spec_arma_1_1_garch_1_1 <- ugarchspec(
   variance.model = list(
     model = "sGARCH",
@@ -434,7 +452,6 @@ spec_arma_1_1_garch_1_1 <- ugarchspec(
 
 
 return <- dailyReturn(xts(x = quotes[[2]], order.by = quotes[[1]]), type='log')
-#return <- last(return, 37) # For loop not working if nrow(return) < 37
 
 garch_model <-
   ugarchfit(spec = spec_arma_1_1_garch_1_1,
