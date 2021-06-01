@@ -411,9 +411,12 @@ According to the ADF test the series are integrated of order ``r i``, or in othe
 
 # Simulation
 
+This chapter provides graphical visualisation of simulated paths with an addition of historical return values. The graph is made using `ggplotly` package and enables user to zoom, pan, hover over observations to obtain tooltip info and more.
 
 
-## ARMA(1,1)-GARCH(1,1)
+## Model selection
+
+For the purpose of simulation ARMA(1,1)-GARCH(1,1) model has been selected. It is quite safe choice for unknown series because it handles both mean and volatility processes. It was also assumed that residuals of the model follow a Normal Distribution, which is strongly in line with researches carried out in this report.
 
 ```{r, echo=F}
 # Condition for simulation to happen - minimum 100 obs.
@@ -527,7 +530,5 @@ ggplotly(p, dynamicTicks = TRUE) %>%
     )
   )
 ```
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 ***
